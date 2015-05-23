@@ -1,0 +1,158 @@
+#!/bin/bash
+# Part of PiNet https://github.com/PiNet/PiNet-Workshop
+#
+# See LICENSE file for copyright and license details
+
+version=0.0.1
+
+Interface="eth0"
+
+#PiNet-Workshop
+#A simple tool for doing batch functions for Raspberry Pi workshops using PiNet.
+
+NBDRun() {
+#Checks if it should be auto NBD compressing or not, if it should be, it recompresses the image
+		echo "--------------------------------------------------------"
+		echo "Compressing the image, this will take roughly 5 minutes"
+		echo "--------------------------------------------------------"
+		ltsp-update-image /opt/ltsp/armhf  #If NBD is enabled, recompress the image
+}
+
+CheckTerminalSize(){
+	#Resizes the terminal to the correct size for the menus
+        eval `resize`
+        if [ "$LINES" -le "28" ]; then
+                a='\e[8;28;'
+                b='t'
+                printf "$a$COLUMNS$b"
+        fi
+        eval `resize`
+        if [ "$COLUMNS" -le "90" ]; then
+                a='\e[8;'
+                b=';90t'
+                printf "$a$LINES$b"
+        fi
+}
+
+fixGroups(){
+#Adds users to correct needed groups. Can take a while if there is a lot of users!
+#Adds all the groups if they don't exist
+for ugroup in adm dialout cdrom audio users sudo video games plugdev input; do
+	egrep -i "^$ugroup" /etc/group >> /dev/null
+	if [ $? = 1 ]; then
+		groupadd $ugroup
+	fi
+done
+
+
+#Adds all users to all the required groups if they aren't already in them
+cut -d: -f1,3 /etc/passwd | egrep ':[0-9]{4}$' | cut -d: -f1 | while IFS= read -r user  #Gets
+do
+	for ugroup in adm dialout cdrom audio users video games plugdev input pupil; do
+		if ! groups "$user" | grep -q -E ' $ugroup(\s|$)'; then
+			usermod -a -G $ugroup $user
+		fi
+	done
+done
+
+}
+
+InstallDHCP(){
+sudo apt-get install isc-dhcp-server
+
+cat <<EOF > /etc/dhcp/dhcpd.conf
+# Sample /etc/dhcpd.conf
+# (add your comments here) 
+default-lease-time 600;
+max-lease-time 7200;
+option subnet-mask 255.255.255.0;
+option broadcast-address 192.168.1.255;
+option routers 192.168.1.254;
+option domain-name-servers 192.168.1.1, 192.168.1.2;
+option domain-name "mydomain.example";
+
+subnet 192.168.1.0 netmask 255.255.255.0 {
+range 192.168.1.10 192.168.1.100;
+range 192.168.1.150 192.168.1.200;
+} 
+EOF
+sudo service isc-dhcp-server restart
+}
+
+DisableDHCP(){
+	sudo service isc-dhcp-server stop 
+	sudo update-rc.d -f isc-dhcp-server remove
+	sudo dhclient -r "$Interface"
+	sudo dhclient "$Interface"
+}
+
+EnableDHCP(){
+	sudo update-rc.d -f isc-dhcp-server defaults
+	sudo ifconfig "$Interface"   192.168.5.1 netmask 255.255.255.0
+	sudo service isc-dhcp-server start
+}
+
+Menu(){
+	IP=`ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}'`
+	MENUEPT=$(whiptail --title "PiNet-Support $version - $IP" --cancel-button "Quit" --ok-button "Select" --menu "What would you like to do?" 20 85 10 \
+		"Install-DHCP" "Installs DHCP server and enables it" \
+		"DHCP-server-on" "Enable DHCP server" \
+    "DHCP-server-off" "Disable DHCP server" \
+    "Group-check" "Checks all users are in the correct system groups" \
+    "NBD-recompress" "Force an NBD compress if changes are made outside PiNet" \
+    3>&1 1>&2 2>&3)
+
+case "$MENUEPT" in
+	Install-DHCP) 
+		InstallDHCP
+		DisableDHCP
+		whiptail --title "Installation complete" --msgbox "DHCP server has been installed, but has been disabled by default. To enable it, run DHCP-server-on from main menu." 8 78
+		Menu
+    ;;
+		DHCP-server-on)
+		EnableDHCP
+		whiptail --title "DHCP enabled" --msgbox "DHCP server has been enabled." 8 78
+		Menu
+    ;;
+		DHCP-server-off)
+		DisableDHCP
+		whiptail --title "DHCP disabled" --msgbox "DHCP server has been disabled." 8 78
+		Menu
+    ;;
+		Group-check)
+		fixGroups
+		Menu
+    ;;
+		NBD-recompress)
+		NBDRun
+		Menu
+    ;;
+    *)
+		exit
+    ;;
+
+esac
+}
+	
+if [ "$(id -u)" != "0" ]; then  #Check if script is being run as root
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
+if [ ! "$BASH_VERSION" ] ; then   #Checks that PiNet is being run using bash and not ash (aka sh)
+	whiptail --title "Shell error" --msgbox "Please do not run PiNet-workshops with sudo sh $0. Please run it with bash using     sudo bash $0" 8 78
+    echo "Please do not run PiNet-workshops with sh $0. Please run it with bash using     sudo bash $0" 1>&2
+    exit 1
+fi
+CheckTerminalSize
+sleep 0.05
+whiptail --title "WARNING" --msgbox "Warning! The tools found in this application can interfere with your network and should only be used under instruction of PiNet support." 8 78
+if [ ! -d /opt/ltsp/armhf ]; then
+    	whiptail --title "Welcome" --yesno 'PiNet installation has not be detected! Do you want to continue?' 8 78 
+		exitstatus=$?
+		if [ $exitstatus = 0 ]; then
+			Menu
+		fi
+else
+	Menu	
+fi
