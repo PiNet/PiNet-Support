@@ -1,9 +1,9 @@
 #!/bin/bash
-# Part of PiNet https://github.com/PiNet/PiNet-Workshop
+# Part of PiNet https://github.com/PiNet/PiNet-Support
 #
 # See LICENSE file for copyright and license details
 
-version=0.0.1
+version=0.0.2
 
 Interface="eth0"
 
@@ -92,6 +92,16 @@ EnableDHCP(){
 	sudo service isc-dhcp-server start
 }
 
+CheckWeb(){
+	if [ ! -f ~/check-web.py ]; then
+		echo ""
+    echo "Downloading check-web.py. If this fails, manually download the file from   "
+		echo "https://raw.githubusercontent.com/PiNet/PiNet-Support/master/check-web.py"
+		echo ""
+	fi
+	python3 ~/check-web.py
+}
+
 Menu(){
 	IP=`ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}'`
 	MENUEPT=$(whiptail --title "PiNet-Support $version - $IP" --cancel-button "Quit" --ok-button "Select" --menu "What would you like to do?" 20 85 10 \
@@ -100,6 +110,7 @@ Menu(){
     "DHCP-server-off" "Disable DHCP server" \
     "Group-check" "Checks all users are in the correct system groups" \
     "NBD-recompress" "Force an NBD compress if changes are made outside PiNet" \
+		"Check-web" "Check all the sites PiNet uses to see if they are accessable" \
     3>&1 1>&2 2>&3)
 
 case "$MENUEPT" in
@@ -125,6 +136,12 @@ case "$MENUEPT" in
     ;;
 		NBD-recompress)
 		NBDRun
+		Menu
+    ;;
+		Check-web)
+		CheckWeb
+		echo "Hit enter to continue"
+		read
 		Menu
     ;;
     *)
