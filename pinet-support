@@ -3,7 +3,7 @@
 #
 # See LICENSE file for copyright and license details
 
-version=0.0.4
+version=0.0.5
 
 Interface="eth0"
 
