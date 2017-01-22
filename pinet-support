@@ -3,12 +3,13 @@
 #
 # See LICENSE file for copyright and license details
 
-version=0.0.5
+version=0.0.6
 
 Interface="eth0"
 
-#PiNet-Workshop
-#A simple tool for doing batch functions for Raspberry Pi workshops using PiNet.
+# PiNet-Support
+# A tool providing a series of additional tools for diagnosing issues with PiNet.
+# PiNet-Support should only be used if instructed to do so by PiNet support team.
 
 NBDRun() {
 #Checks if it should be auto NBD compressing or not, if it should be, it recompresses the image
@@ -103,15 +104,28 @@ CheckWeb(){
 	python3 ~/check-web.py
 }
 
+RemoteSupport(){
+    echo ""
+    echo "---------------------------------------------------------------------------"
+    echo "Attempting to connect to remote support server.."
+    echo "When prompted for a password, enter the password provided to you."
+    echo "Once you are finished, type \"exit\" and hit enter to quit the session."
+    echo "Note - The password will not show as you type it, this is a security feature."
+    echo "---------------------------------------------------------------------------"
+    echo ""
+    ssh -o StrictHostKeyChecking=no -p 31415 -R 19999:localhost:22 support@remote-support.pinet.org.uk
+}
+
 Menu(){
 	IP=`ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}'`
 	MENUEPT=$(whiptail --title "PiNet-Support $version - $IP" --cancel-button "Quit" --ok-button "Select" --menu "What would you like to do?" 20 85 10 \
-		"Install-DHCP" "Installs DHCP server and enables it" \
-		"DHCP-server-on" "Enable DHCP server" \
+	"Install-DHCP" "Installs DHCP server and enables it" \
+	"DHCP-server-on" "Enable DHCP server" \
     "DHCP-server-off" "Disable DHCP server" \
     "Group-check" "Checks all users are in the correct system groups" \
     "NBD-recompress" "Force an NBD compress if changes are made outside PiNet" \
-		"Check-web" "Check all the sites PiNet uses to see if they are accessable" \
+	"Check-web" "Check all the sites PiNet uses to see if they are accessable" \
+	"Remote-support" "Enable remote support using password provided by PiNet support" \
     3>&1 1>&2 2>&3)
 
 case "$MENUEPT" in
@@ -144,6 +158,9 @@ case "$MENUEPT" in
 		echo "Hit enter to continue"
 		read
 		Menu
+    ;;
+        Remote-support)
+		RemoteSupport
     ;;
     *)
 		exit
