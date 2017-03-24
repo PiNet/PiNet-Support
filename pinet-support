@@ -3,7 +3,7 @@
 #
 # See LICENSE file for copyright and license details
 
-version=0.0.6
+version=0.0.7
 
 Interface="eth0"
 
@@ -113,7 +113,7 @@ RemoteSupport(){
     echo "Note - The password will not show as you type it, this is a security feature."
     echo "---------------------------------------------------------------------------"
     echo ""
-    ssh -o StrictHostKeyChecking=no -p 31415 -R 19999:localhost:22 support@remote-support.pinet.org.uk
+    ssh -o StrictHostKeyChecking=no -p 443 -R 19999:localhost:22 support@remote-support.pinet.org.uk
 }
 
 Menu(){
